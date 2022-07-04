@@ -65,6 +65,14 @@ module.exports.deleteTokenCookie = (ctx) => {
       httpOnly: false
     }
   );
+  ctx.cookies.set(
+    "thirdType", // name
+    '', // value
+    {
+      maxAge: 0, // cookie有效时
+      httpOnly: false
+    }
+  );
 };
 
 module.exports.setTokenCookie = (ctx, token) => {
@@ -75,6 +83,16 @@ module.exports.setTokenCookie = (ctx, token) => {
   // httpOnly:是否只用http请求中获得
   // overwirte：是否允许重写
   ctx.cookies.set(
+    "nowTime", // name
+    new Date(), // value
+    {
+      maxAge: 10 * 24 * 60 * 60 * 1000, // cookie有效时
+      httpOnly: false,
+      overwirte: false
+    }
+  );
+
+  ctx.cookies.set(
     config.tokenName, // name
     token, // value
     {
@@ -83,5 +101,7 @@ module.exports.setTokenCookie = (ctx, token) => {
       overwirte: false
     }
   );
+
+
   // console.log('ctx.cookies', ctx.cookies.get(config.tokenName));
 };

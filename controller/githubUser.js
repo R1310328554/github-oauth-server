@@ -5,7 +5,7 @@ const {
 } = require('../utils/token');
 const { CustomError } = require('../utils/customError');
 const config = require('../config');
-const User = require('../model/user');
+const GithubUser = require('../model/user');
 
 class authController {
   static async login(ctx) {
@@ -21,29 +21,28 @@ class authController {
         const {
           login: userId, name: username, avatar_url: avatar, email, bio, blog, id
         } = userInfo;
-        const hasUser = await User.findOneAndUpdate({
-          githubId: id
+        const hasUser = await GithubUser.findOneAndUpdate({
+          userId: id
         }, {
           userId,
           avatar,
           blog,
           bio,
-          githubInfo: userInfo,
+          userInfo: userInfo,
           lastLoginDate: Date.now()
         });
         let res;
         if (hasUser) {
           res = hasUser;
         } else {
-          res = await new User({
-            githubId: id,
+          res = await new GithubUser({
             userId,
             username,
             avatar,
             email,
             bio,
             blog,
-            githubInfo: userInfo
+            userInfo: userInfo
           }).save();
         }
         console.log('res---', res);
@@ -51,8 +50,21 @@ class authController {
           const jwtToken = createToken({
             _id: res._id,
             userId: res.userId,
-            githubId: res.githubId
+            access_token: data.access_token,
+            thirdType: 'github'
           });
+
+          setTokenCookie(ctx, jwtToken);
+          ctx.cookies.set(
+            "thirdType", // name
+            'github', // value
+            {
+              maxAge: 10 * 24 * 60 * 60 * 1000, // cookie有效时
+              httpOnly: false,
+              overwirte: true
+            }
+          );
+
           setTokenCookie(ctx, jwtToken);
           ctx.redirect(config.githubOAth.redirect_uri);
           return;
@@ -73,7 +85,7 @@ class authController {
   static async getUserInfo(ctx) {
     const userObj = decodeToken(ctx);
     console.log('userObj', userObj);
-    const result = await User.findOne({
+    const result = await GithubUser.findOne({
       _id: userObj._id
     }).exec().catch(() => {
       throw new CustomError(500, '服务器内部错误');
@@ -86,8 +98,7 @@ class authController {
         username,
         status,
         avatar,
-        githubInfo,
-        githubId
+        userInfo
       } = result;
       ctx.data({
         msg: '获取用户信息成功！',
@@ -97,8 +108,7 @@ class authController {
           username,
           status,
           avatar,
-          githubInfo,
-          githubId
+          userInfo
         }
       });
     } else {
@@ -110,7 +120,7 @@ class authController {
   }
 
   static async getAllUser(ctx) {
-    const result = await User.find();
+    const result = await GithubUser.find();
     ctx.data({ data: result });
   }
 }

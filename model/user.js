@@ -34,10 +34,10 @@ const mongoose = require('mongoose');
 //   updated_at: '2021-07-27T14:30:13Z'
 // }
 const userSchema = new mongoose.Schema({
-  githubId: {
-    type: String,
-    required: false
-  },
+  // oid: {
+  //   type: String,
+  //   required: false
+  // },
   userId: {
     type: String,
     required: true
@@ -62,8 +62,12 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: false
   },
-  githubInfo: {
+  userInfo: {
     type: Object,
+    required: false
+  },
+  location: {
+    type: String,
     required: false
   },
   // 发布日期

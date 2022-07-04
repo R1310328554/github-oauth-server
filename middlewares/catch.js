@@ -5,6 +5,7 @@ const {
 
 module.exports = async (ctx, next) => (
   next().catch((err) => {
+    console.log(" 发生错误：", err)
     let code = 500;
     let msg = 'unknown error';
     if (err instanceof CustomError || err instanceof HttpError) {
