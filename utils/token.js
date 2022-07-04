@@ -82,15 +82,6 @@ module.exports.setTokenCookie = (ctx, token) => {
   // expires：cookie失效时间
   // httpOnly:是否只用http请求中获得
   // overwirte：是否允许重写
-  ctx.cookies.set(
-    "nowTime", // name
-    new Date(), // value
-    {
-      maxAge: 10 * 24 * 60 * 60 * 1000, // cookie有效时
-      httpOnly: false,
-      overwirte: false
-    }
-  );
 
   ctx.cookies.set(
     config.tokenName, // name

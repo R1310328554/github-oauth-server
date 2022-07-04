@@ -10,6 +10,12 @@ const router = new Router({
 
 const githubUser = require('../controller/githubUser');
 const weiboUser = require('../controller/weiboUser');
+const myUser = require('../controller/myUser');
+
+router.post('/my/user/login', myUser.login);
+router.get('/my/user/logout', checkToken, myUser.logout);
+router.get('/my/user/getUserInfo', checkToken, myUser.getUserInfo);
+router.get('/my/user/getAllUser', myUser.getAllUser);
 
 router.get('/github/user/login', githubUser.login);
 router.get('/github/user/logout', checkToken, githubUser.logout);
