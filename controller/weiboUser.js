@@ -10,18 +10,6 @@ const User = require('../model/user');
 class authController {
   static async login(ctx) {
     const { code } = ctx.query;
-
-    ctx.cookies.set(
-      "nowTime222", // name
-      new Date(), // value
-      {
-        maxAge: 10 * 24 * 60 * 60 * 1000, // cookie有效时
-        httpOnly: false,
-        overwirte: false
-      }
-    );
-
-
     console.log('code----', code);
     const data = await getAccessToken(code, "weibo");
     // const data = {

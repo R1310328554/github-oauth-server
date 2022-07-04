@@ -19,12 +19,14 @@ class authController {
       console.log('userInfo', userInfo);
       if (userInfo) {
         const {
-          login: userId, name: username, avatar_url: avatar, email, bio, blog, id
+          id: userId, name: nickname, login: username, avatar_url: avatar, email, bio, blog, id
         } = userInfo;
         const hasUser = await GithubUser.findOneAndUpdate({
           userId: id
         }, {
           userId,
+          username,
+          nickname,
           avatar,
           blog,
           bio,
@@ -45,12 +47,11 @@ class authController {
             userInfo: userInfo
           }).save();
         }
-        console.log('res---', res);
         if (res) {
           const jwtToken = createToken({
             _id: res._id,
             userId: res.userId,
-            access_token: data.access_token,
+            access_token: token.access_token,
             thirdType: 'github'
           });
 
