@@ -1,7 +1,9 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const User = require('../model/user');
 const OAuthState = require('../model/oauthState');
+const OtpChallenge = require('../model/otpChallenge');
 const { getProvider } = require('../providers');
 const { encrypt, randomToken, sha256Base64Url } = require('../utils/crypto');
 const { CustomError } = require('../utils/customError');
@@ -9,6 +11,7 @@ const constants = require('../utils/constants');
 const config = require('../config');
 
 const STATE_TTL_MS = 10 * 60 * 1000;
+const OTP_TTL_MS = 10 * 60 * 1000;
 
 function clientMeta(ctx) {
   return {
@@ -189,11 +192,43 @@ async function upsertOAuthUser({
   return user;
 }
 
-async function handleOAuthCallback(ctx, provider, { code, state }) {
+async function handleTelegramCallback(ctx, query = {}) {
+  const provider = 'telegram';
+  const providerImpl = getProvider(provider);
+  if (!providerImpl || !providerImpl.enabled) {
+    throw new CustomError(constants.CUSTOM_CODE.PROVIDER_DISABLED, '提供方 telegram 未配置或已禁用');
+  }
+
+  const stateRecord = await consumeOAuthState(provider, query.state);
+  const signed = providerImpl.verifyLoginPayload(query);
+  const profile = await providerImpl.getUserProfile(signed);
+  const user = await upsertOAuthUser({
+    provider,
+    profile,
+    tokenPayload: {},
+    mode: stateRecord.mode,
+    bindUserId: stateRecord.userId,
+    ctx
+  });
+
+  return {
+    user,
+    returnTo: stateRecord.returnTo || config.frontendUrl,
+    provider,
+    mode: stateRecord.mode
+  };
+}
+
+async function handleOAuthCallback(ctx, provider, { code, state, ...rest }) {
   const providerImpl = getProvider(provider);
   if (!providerImpl || !providerImpl.enabled) {
     throw new CustomError(constants.CUSTOM_CODE.PROVIDER_DISABLED, `提供方 ${provider} 未配置或已禁用`);
   }
+
+  if (providerImpl.authType === 'telegram') {
+    return handleTelegramCallback(ctx, { code, state, ...rest });
+  }
+
   if (!code) {
     throw new CustomError(constants.CUSTOM_CODE.INVALID_PARAM, '缺少授权 code');
   }
@@ -219,6 +254,125 @@ async function handleOAuthCallback(ctx, provider, { code, state }) {
     returnTo: stateRecord.returnTo || config.frontendUrl,
     provider,
     mode: stateRecord.mode
+  };
+}
+
+function normalizePhone(phone) {
+  return String(phone || '').replace(/\D/g, '');
+}
+
+async function sendWhatsAppOtp(ctx, {
+  phone,
+  state = '',
+  mode = 'login',
+  returnTo = '',
+  userId = ''
+}) {
+  const providerImpl = getProvider('whatsapp');
+  if (!providerImpl || !providerImpl.enabled) {
+    throw new CustomError(constants.CUSTOM_CODE.PROVIDER_DISABLED, '提供方 whatsapp 未配置或已禁用');
+  }
+  const normalized = normalizePhone(phone);
+  if (normalized.length < 8) {
+    throw new CustomError(constants.CUSTOM_CODE.INVALID_PARAM, '手机号无效');
+  }
+
+  let stateRecord = null;
+  if (state) {
+    stateRecord = await OAuthState.findOne({ state, provider: 'whatsapp' });
+    if (!stateRecord || stateRecord.consumedAt || stateRecord.expiresAt.getTime() < Date.now()) {
+      throw new CustomError(constants.CUSTOM_CODE.STATE_INVALID, 'OAuth state 无效或已过期');
+    }
+  } else {
+    const created = await createOAuthState(ctx, {
+      provider: 'whatsapp',
+      mode,
+      userId,
+      returnTo
+    });
+    state = created.state;
+    stateRecord = await OAuthState.findOne({ state, provider: 'whatsapp' });
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const codeHash = crypto.createHash('sha256').update(`${normalized}:${code}`).digest('hex');
+
+  await OtpChallenge.deleteMany({ provider: 'whatsapp', phone: normalized, consumedAt: null });
+  await OtpChallenge.create({
+    provider: 'whatsapp',
+    phone: normalized,
+    codeHash,
+    state,
+    mode: stateRecord.mode,
+    userId: stateRecord.userId,
+    returnTo: stateRecord.returnTo,
+    expiresAt: new Date(Date.now() + OTP_TTL_MS)
+  });
+
+  if (config.env === 'production' || process.env.WHATSAPP_SEND_REAL === '1') {
+    await providerImpl.sendOtpMessage(normalized, code);
+  } else {
+    console.log(`[whatsapp-otp:dev] phone=${normalized} code=${code}`);
+  }
+
+  return {
+    state,
+    phone: normalized,
+    expiresIn: Math.floor(OTP_TTL_MS / 1000),
+    // Dev convenience only; never returned in production.
+    devCode: config.env === 'production' ? undefined : code
+  };
+}
+
+async function verifyWhatsAppOtp(ctx, { phone, code, state }) {
+  const providerImpl = getProvider('whatsapp');
+  if (!providerImpl || !providerImpl.enabled) {
+    throw new CustomError(constants.CUSTOM_CODE.PROVIDER_DISABLED, '提供方 whatsapp 未配置或已禁用');
+  }
+  const normalized = normalizePhone(phone);
+  if (!normalized || !code || !state) {
+    throw new CustomError(constants.CUSTOM_CODE.INVALID_PARAM, '手机号、验证码和 state 必填');
+  }
+
+  const challenge = await OtpChallenge.findOne({
+    provider: 'whatsapp',
+    phone: normalized,
+    state,
+    consumedAt: null
+  });
+  if (!challenge || challenge.expiresAt.getTime() < Date.now()) {
+    throw new CustomError(constants.CUSTOM_CODE.LOGIN_FAILED, '验证码无效或已过期');
+  }
+  if (challenge.attempts >= 5) {
+    throw new CustomError(constants.CUSTOM_CODE.LOGIN_FAILED, '验证码尝试次数过多');
+  }
+
+  const codeHash = crypto.createHash('sha256').update(`${normalized}:${code}`).digest('hex');
+  challenge.attempts += 1;
+  if (challenge.codeHash !== codeHash) {
+    await challenge.save();
+    throw new CustomError(constants.CUSTOM_CODE.LOGIN_FAILED, '验证码错误');
+  }
+
+  challenge.consumedAt = new Date();
+  await challenge.save();
+  await consumeOAuthState('whatsapp', state);
+
+  const profile = await providerImpl.getUserProfile({ phone: normalized });
+  const user = await upsertOAuthUser({
+    provider: 'whatsapp',
+    profile,
+    tokenPayload: {},
+    mode: challenge.mode,
+    bindUserId: challenge.userId,
+    ctx
+  });
+
+  return {
+    user,
+    returnTo: challenge.returnTo || config.frontendUrl,
+    provider: 'whatsapp',
+    mode: challenge.mode
   };
 }
 
@@ -293,6 +447,9 @@ async function unbindProvider(userId, provider) {
 module.exports = {
   createOAuthState,
   handleOAuthCallback,
+  handleTelegramCallback,
+  sendWhatsAppOtp,
+  verifyWhatsAppOtp,
   registerLocal,
   loginLocal,
   unbindProvider

@@ -12,11 +12,14 @@ class BaseProvider {
     this.description = options.description || '';
     this.scopes = options.scopes || [];
     this.supportsPKCE = Boolean(options.supportsPKCE);
+    // oauth | telegram | otp
+    this.authType = options.authType || 'oauth';
     this.clientId = options.clientId || '';
     this.clientSecret = options.clientSecret || '';
     this.authorizeUrl = options.authorizeUrl;
     this.tokenUrl = options.tokenUrl;
     this.userInfoUrl = options.userInfoUrl;
+    this.extra = options.extra || {};
   }
 
   get enabled() {
@@ -37,6 +40,7 @@ class BaseProvider {
       description: this.description,
       enabled: this.enabled,
       supportsPKCE: this.supportsPKCE,
+      authType: this.authType,
       scopes: this.scopes
     };
   }

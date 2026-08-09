@@ -9,15 +9,29 @@ const DouyinProvider = require('./douyin');
 const BilibiliProvider = require('./bilibili');
 const KuaishouProvider = require('./kuaishou');
 const XiaohongshuProvider = require('./xiaohongshu');
+const QQProvider = require('./qq');
+const FeishuProvider = require('./feishu');
+const DingTalkProvider = require('./dingtalk');
+const WeComProvider = require('./wecom');
+const XProvider = require('./x');
+const TelegramProvider = require('./telegram');
+const WhatsAppProvider = require('./whatsapp');
 
 const providers = [
   new GitHubProvider(),
   new WeiboProvider(),
   new WeChatProvider(),
+  new QQProvider(),
+  new FeishuProvider(),
+  new DingTalkProvider(),
+  new WeComProvider(),
   new GoogleProvider({ id: 'google', name: 'Google', icon: 'google' }),
   new GoogleProvider({ id: 'gmail', name: 'Gmail', icon: 'gmail' }),
   new MetaProvider(),
   new InstagramProvider(),
+  new XProvider(),
+  new TelegramProvider(),
+  new WhatsAppProvider(),
   new TikTokProvider(),
   new DouyinProvider(),
   new BilibiliProvider(),

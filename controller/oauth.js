@@ -4,12 +4,13 @@ const { listProviders, getProvider } = require('../providers');
 const {
   createOAuthState,
   handleOAuthCallback,
+  sendWhatsAppOtp,
+  verifyWhatsAppOtp,
   unbindProvider
 } = require('../services/authService');
 const {
   createToken, setTokenCookie, decodeToken, checkToken
 } = require('../utils/token');
-const User = require('../model/user');
 const { CustomError } = require('../utils/customError');
 
 function issueSession(ctx, user, provider) {
@@ -28,6 +29,12 @@ function issueSession(ctx, user, provider) {
     overwrite: true
   });
   return token;
+}
+
+function redirectWithError(ctx, message) {
+  const target = new URL(config.frontendUrl);
+  target.hash = `/login?error=${encodeURIComponent(message || '登录失败')}`;
+  ctx.redirect(target.toString());
 }
 
 class OAuthController {
@@ -74,30 +81,79 @@ class OAuthController {
 
   static async callback(ctx) {
     const { provider } = ctx.params;
-    const { code, state, error, error_description: errorDescription } = ctx.query;
+    const {
+      code,
+      state,
+      error,
+      error_description: errorDescription,
+      ...rest
+    } = ctx.query;
 
     if (error) {
-      const target = new URL(config.frontendUrl);
-      target.hash = `/login?error=${encodeURIComponent(errorDescription || error)}`;
-      ctx.redirect(target.toString());
+      redirectWithError(ctx, errorDescription || error);
       return;
     }
 
     try {
-      const result = await handleOAuthCallback(ctx, provider, { code, state });
+      const result = await handleOAuthCallback(ctx, provider, {
+        code,
+        state,
+        ...rest
+      });
       issueSession(ctx, result.user, provider);
 
       const target = new URL(result.returnTo || config.frontendUrl);
-      // Prefer hash router used by admin app
       if (!target.hash || target.hash === '#') {
         target.hash = result.mode === 'bind' ? '/profile?bound=1' : '/?login=1';
       }
       ctx.redirect(target.toString());
     } catch (err) {
-      const target = new URL(config.frontendUrl);
-      target.hash = `/login?error=${encodeURIComponent(err.msg || err.message || '登录失败')}`;
-      ctx.redirect(target.toString());
+      redirectWithError(ctx, err.msg || err.message || '登录失败');
     }
+  }
+
+  static async whatsappSendOtp(ctx) {
+    const body = ctx.request.body || {};
+    const mode = body.mode === 'bind' ? 'bind' : 'login';
+    let userId = '';
+    if (mode === 'bind') {
+      const session = decodeToken(ctx);
+      if (!session?.userId) {
+        throw new CustomError(constants.HTTP_CODE.UNAUTHORIZED, '绑定前请先登录');
+      }
+      userId = session.userId;
+    }
+
+    const data = await sendWhatsAppOtp(ctx, {
+      phone: body.phone,
+      state: body.state,
+      mode,
+      returnTo: body.return_to || config.frontendUrl,
+      userId
+    });
+    ctx.data({
+      msg: '验证码已发送',
+      data
+    });
+  }
+
+  static async whatsappVerifyOtp(ctx) {
+    const body = ctx.request.body || {};
+    const result = await verifyWhatsAppOtp(ctx, {
+      phone: body.phone,
+      code: body.code,
+      state: body.state
+    });
+    const token = issueSession(ctx, result.user, 'whatsapp');
+    ctx.data({
+      msg: '登录成功',
+      data: {
+        token,
+        user: result.user.toSafeJSON(),
+        returnTo: result.returnTo,
+        mode: result.mode
+      }
+    });
   }
 
   static async unbind(ctx) {
@@ -116,7 +172,6 @@ class OAuthController {
     });
   }
 
-  // Backward-compatible aliases used by old frontend
   static async legacyGithubLogin(ctx) {
     ctx.params.provider = 'github';
     return OAuthController.callback(ctx);

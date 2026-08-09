@@ -4,7 +4,7 @@
 
 ## 功能
 
-- 多平台 OAuth2 登录：GitHub、微博、微信、Google、Gmail、Meta、Instagram、TikTok、抖音、B站、快手、小红书
+- 多平台登录：GitHub、微博、微信、QQ、飞书、钉钉、企业微信、Google、Gmail、Meta、Instagram、X、Telegram、WhatsApp（OTP）、TikTok、抖音、B站、快手、小红书
 - CSRF `state` + 可选 PKCE（Google / TikTok 等）
 - 本地账号注册 / 登录（bcrypt）
 - 第三方账号绑定 / 解绑（至少保留一种登录方式）
@@ -58,7 +58,13 @@ http://localhost:8999/v1/oauth/<provider>/callback
 例如 GitHub：`http://localhost:8999/v1/oauth/github/callback`  
 然后把 Client ID / Secret 写入 `.env`（见 `.env.example`）。未配置密钥的提供方会在接口中标记为 `enabled: false`，前端可展示为「待配置」。
 
-> 说明：Gmail 复用 Google OAuth；小红书通常需要企业资质，接口已按统一 Provider 实现，字段以官方最新文档为准。
+> 说明：
+> - Gmail 复用 Google OAuth
+> - X 为原 Twitter，使用 OAuth 2.0 + PKCE
+> - Telegram 使用 Login Widget 签名校验
+> - WhatsApp 无标准网站 OAuth，使用 Cloud API 手机号验证码登录（开发环境验证码会在接口/`console` 返回）
+> - 企业微信需配置 `WECOM_CORP_ID` / `WECOM_SECRET` / `WECOM_AGENT_ID`
+> - 小红书通常需要企业资质，字段以官方最新文档为准
 
 ## 安全建议
 

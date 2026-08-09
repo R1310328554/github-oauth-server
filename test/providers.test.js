@@ -7,10 +7,17 @@ describe('oauth providers registry', () => {
     const ids = listProviders().map((item) => item.id);
     for (const id of [
       'github', 'weibo', 'wechat', 'google', 'gmail', 'meta',
-      'instagram', 'tiktok', 'douyin', 'bilibili', 'kuaishou', 'xiaohongshu'
+      'instagram', 'tiktok', 'douyin', 'bilibili', 'kuaishou', 'xiaohongshu',
+      'qq', 'feishu', 'dingtalk', 'wecom', 'x', 'telegram', 'whatsapp'
     ]) {
       assert.ok(ids.includes(id), `missing provider ${id}`);
     }
+  });
+
+  it('marks telegram/whatsapp with non-oauth auth types', () => {
+    assert.equal(getProvider('telegram').authType, 'telegram');
+    assert.equal(getProvider('whatsapp').authType, 'otp');
+    assert.equal(getProvider('x').supportsPKCE, true);
   });
 
   it('marks providers without credentials as disabled', () => {

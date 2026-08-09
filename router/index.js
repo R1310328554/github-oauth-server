@@ -30,6 +30,8 @@ router.patch('/auth/profile', checkToken, auth.updateProfile);
 
 // OAuth providers
 router.get('/oauth/providers', oauth.list);
+router.post('/oauth/whatsapp/otp/send', oauthLimit, oauth.whatsappSendOtp);
+router.post('/oauth/whatsapp/otp/verify', oauthLimit, oauth.whatsappVerifyOtp);
 router.get('/oauth/:provider/authorize', oauthLimit, oauth.authorize);
 router.get('/oauth/:provider/callback', oauthLimit, oauth.callback);
 router.delete('/oauth/:provider/unbind', checkToken, oauth.unbind);

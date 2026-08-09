@@ -85,6 +85,34 @@ module.exports = {
     xiaohongshu: {
       clientId: process.env.XHS_APP_KEY || '',
       clientSecret: process.env.XHS_APP_SECRET || ''
+    },
+    qq: providerEnv('QQ_APP_ID', 'QQ_APP_KEY'),
+    feishu: {
+      clientId: process.env.FEISHU_APP_ID || '',
+      clientSecret: process.env.FEISHU_APP_SECRET || ''
+    },
+    dingtalk: {
+      clientId: process.env.DINGTALK_APP_KEY || process.env.DINGTALK_CLIENT_ID || '',
+      clientSecret: process.env.DINGTALK_APP_SECRET || process.env.DINGTALK_CLIENT_SECRET || ''
+    },
+    wecom: {
+      clientId: process.env.WECOM_CORP_ID || '',
+      clientSecret: process.env.WECOM_SECRET || '',
+      agentId: process.env.WECOM_AGENT_ID || ''
+    },
+    x: {
+      clientId: process.env.X_CLIENT_ID || process.env.TWITTER_CLIENT_ID || '',
+      clientSecret: process.env.X_CLIENT_SECRET || process.env.TWITTER_CLIENT_SECRET || ''
+    },
+    telegram: {
+      clientId: process.env.TELEGRAM_BOT_ID || '',
+      clientSecret: process.env.TELEGRAM_BOT_TOKEN || '',
+      botUsername: process.env.TELEGRAM_BOT_USERNAME || ''
+    },
+    whatsapp: {
+      clientId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
+      clientSecret: process.env.WHATSAPP_ACCESS_TOKEN || '',
+      graphVersion: process.env.WHATSAPP_GRAPH_VERSION || 'v21.0'
     }
   },
   rateLimit: {
