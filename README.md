@@ -82,4 +82,13 @@ npm test
 
 ## 配套前端
 
-见 [github-oauth-admin](https://github.com/R1310328554/github-oauth-admin)。
+独立仓库：[github-oauth-admin](https://github.com/R1310328554/github-oauth-admin)。  
+本仓库同步了一份可运行前端于 `admin/`（便于单 PR 评审）：
+
+```bash
+cd admin
+npm install
+npm run dev
+```
+
+默认 `http://localhost:8080`，通过 Vite 代理访问本服务 `/v1`。

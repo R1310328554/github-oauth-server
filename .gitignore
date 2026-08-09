@@ -8,7 +8,6 @@ package-lock.json
 tests/**/coverage/
 .env
 .env.local
-github-oauth-admin/
 coverage/
 
 # Editor directories and files
