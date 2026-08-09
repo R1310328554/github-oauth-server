@@ -20,8 +20,8 @@ router.get('/health', auth.health);
 router.post('/auth/register', authLimit, auth.register);
 router.post('/auth/login', authLimit, auth.login);
 router.post('/my/user/login', authLimit, auth.login); // backward compatible
-router.get('/auth/logout', checkToken, auth.logout);
-router.get('/my/user/logout', checkToken, auth.logout);
+router.get('/auth/logout', auth.logout);
+router.get('/my/user/logout', auth.logout);
 router.get('/auth/me', checkToken, auth.me);
 router.get('/my/user/getUserInfo', checkToken, auth.me);
 router.get('/github/user/getUserInfo', checkToken, auth.me);
