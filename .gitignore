@@ -6,6 +6,10 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 tests/**/coverage/
+.env
+.env.local
+github-oauth-admin/
+coverage/
 
 # Editor directories and files
 .idea
@@ -14,3 +18,4 @@ tests/**/coverage/
 *.ntvs*
 *.njsproj
 *.sln
+github-oauth-admin/

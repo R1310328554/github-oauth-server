@@ -1,13 +1,11 @@
 const ERROR_MSG = require('./errorMsg');
 const constants = require('./constants');
 
-const {
-  HTTP_CODE
-} = constants;
+const { HTTP_CODE } = constants;
 
 class CustomError extends Error {
   constructor(code, msg) {
-    super(code, msg);
+    super(msg || ERROR_MSG[code] || 'unknown error');
     this.code = code;
     this.msg = msg || ERROR_MSG[code] || 'unknown error';
   }
@@ -19,6 +17,7 @@ class CustomError extends Error {
     };
   }
 }
+
 class HttpError extends CustomError {
   constructor(code, msg) {
     super(code, msg);

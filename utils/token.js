@@ -1,98 +1,117 @@
 const jwt = require('jsonwebtoken');
-const {
-  jwt: config
-} = require('../config');
+const { jwt: jwtConfig, cookie: cookieConfig } = require('../config');
 const constants = require('./constants');
-const {
-  CustomError
-} = require('./customError');
+const { CustomError } = require('./customError');
 
-module.exports.createToken = ({
-  _id,
-  userId
-}) => {
-  const token = jwt.sign({
+function createToken(payload = {}) {
+  const { _id, userId, status, username } = payload;
+  return jwt.sign({
     _id,
-    userId
-  }, config.tokenSecret, {
-    expiresIn: config.expiresIn
+    userId,
+    status,
+    username
+  }, jwtConfig.tokenSecret, {
+    expiresIn: jwtConfig.expiresIn
   });
-  return token;
-};
+}
 
-module.exports.decodeToken = (ctx) => {
-  const token = ctx.cookies.get(config.tokenName);
-  // console.log('decodeToken', token);
-  const userObj = jwt.decode(token, config.tokenSecret);
-  return userObj;
-};
-
-module.exports.checkToken = async (ctx, next) => {
-  // console.log(ctx.request.body);
-  const token = ctx.cookies.get(config.tokenName);
-  if (token) {
-    try {
-      jwt.verify(token, config.tokenSecret);
-      console.log('token有效===');
-    } catch (error) {
-      console.log('error', error);
-      ctx.status = constants.HTTP_CODE.UNAUTHORIZED;
-      ctx.body = 'token 过期';
-    }
-    if (ctx.status === constants.HTTP_CODE.UNAUTHORIZED) {
-      return;
-    }
-    try {
-      await next();
-    } catch (error) {
-      console.log('error===', error);
-      throw new CustomError(error.code, error.msg);
-    }
-  } else {
-    ctx.status = constants.HTTP_CODE.UNAUTHORIZED;
-    ctx.body = '无 token，请登录';
+function decodeToken(ctx) {
+  const token = getTokenFromContext(ctx);
+  if (!token) return null;
+  try {
+    return jwt.verify(token, jwtConfig.tokenSecret);
+  } catch (error) {
+    return null;
   }
-};
+}
 
-// 清除token
-module.exports.deleteTokenCookie = (ctx) => {
-  // const token = ctx.cookies.get(config.tokenName);
-  ctx.cookies.set(
-    config.tokenName, // name
-    '', // value
-    {
-      maxAge: 0, // cookie有效时
-      httpOnly: false
-    }
-  );
-  ctx.cookies.set(
-    "thirdType", // name
-    '', // value
-    {
-      maxAge: 0, // cookie有效时
-      httpOnly: false
-    }
-  );
-};
+function getTokenFromContext(ctx) {
+  const cookieToken = ctx.cookies.get(jwtConfig.tokenName);
+  if (cookieToken) return cookieToken;
+  const auth = ctx.get('Authorization') || '';
+  if (auth.startsWith('Bearer ')) {
+    return auth.slice(7).trim();
+  }
+  return '';
+}
 
-module.exports.setTokenCookie = (ctx, token) => {
-  // domain：写入cookie所在的域名
-  // path：写入cookie所在的路径
-  // maxAge：Cookie最大有效时长
-  // expires：cookie失效时间
-  // httpOnly:是否只用http请求中获得
-  // overwirte：是否允许重写
+async function checkToken(ctx, next) {
+  const token = getTokenFromContext(ctx);
+  if (!token) {
+    ctx.status = constants.HTTP_CODE.UNAUTHORIZED;
+    ctx.body = {
+      success: false,
+      code: constants.HTTP_CODE.UNAUTHORIZED,
+      msg: '未登录或登录已过期',
+      data: {}
+    };
+    return;
+  }
 
-  ctx.cookies.set(
-    config.tokenName, // name
-    token, // value
-    {
-      maxAge: 10 * 24 * 60 * 60 * 1000, // cookie有效时
-      httpOnly: false,
-      overwirte: false
-    }
-  );
+  try {
+    jwt.verify(token, jwtConfig.tokenSecret);
+  } catch (error) {
+    ctx.status = constants.HTTP_CODE.UNAUTHORIZED;
+    ctx.body = {
+      success: false,
+      code: constants.HTTP_CODE.UNAUTHORIZED,
+      msg: 'token 已过期，请重新登录',
+      data: {}
+    };
+    return;
+  }
 
+  try {
+    await next();
+  } catch (error) {
+    throw new CustomError(error.code || 500, error.msg || error.message);
+  }
+}
 
-  // console.log('ctx.cookies', ctx.cookies.get(config.tokenName));
+function requireAdmin(ctx, next) {
+  const user = decodeToken(ctx);
+  if (!user || ![1, 2].includes(Number(user.status))) {
+    ctx.status = constants.HTTP_CODE.FORBIDDEN;
+    ctx.body = {
+      success: false,
+      code: constants.HTTP_CODE.FORBIDDEN,
+      msg: '需要管理员权限',
+      data: {}
+    };
+    return Promise.resolve();
+  }
+  return next();
+}
+
+function cookieOptions(overrides = {}) {
+  return {
+    maxAge: cookieConfig.maxAge,
+    httpOnly: cookieConfig.httpOnly,
+    secure: cookieConfig.secure,
+    sameSite: cookieConfig.sameSite,
+    overwrite: true,
+    ...overrides
+  };
+}
+
+function setTokenCookie(ctx, token) {
+  ctx.cookies.set(jwtConfig.tokenName, token, cookieOptions());
+  // Non-sensitive marker readable by frontend for UX state (real auth remains httpOnly JWT).
+  ctx.cookies.set('nexus_logged_in', '1', cookieOptions({ httpOnly: false }));
+}
+
+function deleteTokenCookie(ctx) {
+  ctx.cookies.set(jwtConfig.tokenName, '', cookieOptions({ maxAge: 0 }));
+  ctx.cookies.set('nexus_logged_in', '', cookieOptions({ maxAge: 0, httpOnly: false }));
+  ctx.cookies.set('thirdType', '', cookieOptions({ maxAge: 0, httpOnly: false }));
+}
+
+module.exports = {
+  createToken,
+  decodeToken,
+  checkToken,
+  requireAdmin,
+  setTokenCookie,
+  deleteTokenCookie,
+  getTokenFromContext
 };

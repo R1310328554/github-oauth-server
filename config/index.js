@@ -1,43 +1,94 @@
+require('dotenv').config();
+
+const toList = (value, fallback = []) => {
+  if (!value) return fallback;
+  return String(value)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+};
+
+const bool = (value, fallback = false) => {
+  if (value === undefined || value === null || value === '') return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(String(value).toLowerCase());
+};
+
+const port = Number(process.env.PORT || 8999);
+const appBaseUrl = process.env.APP_BASE_URL || `http://localhost:${port}`;
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+const oauthCallbackBase = process.env.OAUTH_CALLBACK_BASE || `${appBaseUrl}/v1/oauth`;
+
+const providerEnv = (idKey, secretKey) => ({
+  clientId: process.env[idKey] || '',
+  clientSecret: process.env[secretKey] || ''
+});
+
 module.exports = {
-  ip: process.env.ip,
-  port: process.env.PORT || 8999, // server端口
-  routerBaseApi: '/v1', // 接口基础路径
-  LIMIT: 16,
-  githubOAth: {
-    url: 'https://github.com/login/oauth/access_token',
-    client_id: 'ee0e0710193b7cac1e68',
-    client_secret: 'd544353486c9e083d9c7437187236e8f191c6632',
-    redirect_uri: 'http://192.168.1.103:8080',
-    userUrl: 'https://api.github.com/user'
-  },
-  weiboOAth: {
-    url2: 'https://api.weibo.com/oauth2/access_token',
-    url: 'https://api.weibo.com/oauth2/access_token?client_id=973886123&client_secret=3253f16e8324a73f6ede08c7405c0bad&grant_type=authorization_code&redirect_uri=http%3A%2F%2F192.168.1.103%3A8999%2Fv1%2Fweibo%2Fuser%2Flogin&code=',
-    client_id: '973886123',
-    client_secret: '3253f16e8324a73f6ede08c7405c0bad',
-    redirect_uri: 'http://192.168.1.103:8080',
-    redirect_uri2: 'http://192.168.1.103:8080/callback',
-    get_uid: 'https://api.weibo.com/2/account/get_uid.json',
-    userUrl: 'https://api.weibo.com/2/users/show.json?uid='
-  },
-  wechatOAth: {
-    url: 'https://github.com/login/oauth/access_token',
-    client_id: '7dd33c1a56813db7f797',
-    client_secret: 'de51eecf4d0b887ee9ddbe13019d664d09a6150f',
-    redirect_uri: 'http://192.168.1.103:8080',
-    userUrl: 'https://api.github.com/user'
-  },
+  env: process.env.NODE_ENV || 'development',
+  ip: process.env.IP || process.env.ip || '0.0.0.0',
+  port,
+  appBaseUrl,
+  frontendUrl,
+  routerBaseApi: '/v1',
+  corsOrigins: toList(process.env.CORS_ORIGINS, [frontendUrl, 'http://127.0.0.1:8080']),
   jwt: {
-    tokenName: 'aimee-test-token',
-    tokenSecret: '123456',
-    expiresIn: '240h' // 10天有效期
+    tokenName: process.env.COOKIE_NAME || 'nexus_auth_token',
+    tokenSecret: process.env.JWT_SECRET || 'dev-only-insecure-secret-change-me',
+    expiresIn: process.env.JWT_EXPIRES_IN || '7d'
   },
+  cookie: {
+    secure: bool(process.env.COOKIE_SECURE, false),
+    sameSite: process.env.COOKIE_SAME_SITE || 'lax',
+    httpOnly: true,
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  },
+  tokenEncryptKey: process.env.TOKEN_ENCRYPT_KEY || 'dev-only-token-encrypt-key-change-me!!',
+  oauthCallbackBase,
   mongo: {
-    host: '127.0.0.1',
-    database: 'aimeeTest2',
-    port: 27017,
-    user: '',
-    password: '',
-    rs_name: ''
+    uri: process.env.MONGO_URI || '',
+    host: process.env.MONGO_HOST || '127.0.0.1',
+    database: process.env.MONGO_DATABASE || 'oauth_hub',
+    port: Number(process.env.MONGO_PORT || 27017),
+    user: process.env.MONGO_USER || '',
+    password: process.env.MONGO_PASSWORD || ''
+  },
+  providers: {
+    github: providerEnv('GITHUB_CLIENT_ID', 'GITHUB_CLIENT_SECRET'),
+    weibo: providerEnv('WEIBO_CLIENT_ID', 'WEIBO_CLIENT_SECRET'),
+    wechat: {
+      clientId: process.env.WECHAT_APP_ID || '',
+      clientSecret: process.env.WECHAT_APP_SECRET || ''
+    },
+    google: providerEnv('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'),
+    gmail: providerEnv('GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'),
+    meta: {
+      clientId: process.env.META_APP_ID || '',
+      clientSecret: process.env.META_APP_SECRET || ''
+    },
+    instagram: {
+      clientId: process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID || '',
+      clientSecret: process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET || ''
+    },
+    tiktok: {
+      clientId: process.env.TIKTOK_CLIENT_KEY || '',
+      clientSecret: process.env.TIKTOK_CLIENT_SECRET || ''
+    },
+    douyin: {
+      clientId: process.env.DOUYIN_CLIENT_KEY || '',
+      clientSecret: process.env.DOUYIN_CLIENT_SECRET || ''
+    },
+    bilibili: providerEnv('BILIBILI_CLIENT_ID', 'BILIBILI_CLIENT_SECRET'),
+    kuaishou: {
+      clientId: process.env.KUAISHOU_APP_ID || '',
+      clientSecret: process.env.KUAISHOU_APP_SECRET || ''
+    },
+    xiaohongshu: {
+      clientId: process.env.XHS_APP_KEY || '',
+      clientSecret: process.env.XHS_APP_SECRET || ''
+    }
+  },
+  rateLimit: {
+    duration: 60 * 1000,
+    max: 60
   }
 };

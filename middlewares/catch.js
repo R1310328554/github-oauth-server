@@ -5,7 +5,6 @@ const {
 
 module.exports = async (ctx, next) => (
   next().catch((err) => {
-    console.log(" 发生错误：", err)
     let code = 500;
     let msg = 'unknown error';
     if (err instanceof CustomError || err instanceof HttpError) {
@@ -15,7 +14,8 @@ module.exports = async (ctx, next) => (
       msg = res.msg;
     } else {
       ctx.status = code;
-      console.error('err', err);
+      console.error('Unhandled error:', err);
+      msg = err.message || msg;
     }
     ctx.body = {
       success: false,
