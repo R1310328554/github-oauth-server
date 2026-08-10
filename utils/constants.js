@@ -8,6 +8,17 @@ module.exports = Object.freeze({
     SERVICE_BUSY: 503
   },
   CUSTOM_CODE: {
-    SOME_CUSTOM_ERROR: 1001
+    INVALID_PARAM: 1001,
+    LOGIN_FAILED: 1002,
+    PROVIDER_DISABLED: 1003,
+    STATE_INVALID: 1004,
+    BIND_FAILED: 1005,
+    USER_EXISTS: 1006
+  },
+  USER_STATUS: {
+    SUPER_ADMIN: 1,
+    ADMIN: 2,
+    USER: 3,
+    DISABLED: 9
   }
 });

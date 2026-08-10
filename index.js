@@ -7,21 +7,37 @@ const mongodb = require('./mongodb');
 const corsOpt = require('./middlewares/corsOpt');
 const data = require('./middlewares/data');
 const catchError = require('./middlewares/catch');
+const securityHeaders = require('./middlewares/securityHeaders');
+const createRateLimit = require('./middlewares/rateLimit');
 
-const app = new Koa();
-// 连接数据库
-mongodb();
+async function bootstrap() {
+  if (config.env === 'production' && config.jwt.tokenSecret.includes('dev-only')) {
+    throw new Error('Production JWT_SECRET must be set to a strong random value');
+  }
 
-app.use(corsOpt);
+  await mongodb();
 
-app.use(data);
+  const app = new Koa();
+  app.proxy = true;
 
-app.use(bodyParser());
+  app.use(securityHeaders);
+  app.use(corsOpt);
+  app.use(data);
+  app.use(bodyParser({
+    jsonLimit: '1mb',
+    formLimit: '1mb'
+  }));
+  app.use(logger());
+  app.use(createRateLimit({ prefix: 'all', max: 120 }));
+  app.use(catchError);
+  app.use(router.routes()).use(router.allowedMethods());
 
-app.use(logger());
+  app.listen(config.port, config.ip, () => {
+    console.log(`OAuth Hub listening on ${config.appBaseUrl} (port ${config.port})`);
+  });
+}
 
-app.use(catchError);
-
-app.use(router.routes()).use(router.allowedMethods());
-
-app.listen(config.port);
+bootstrap().catch((error) => {
+  console.error('Failed to start server:', error);
+  process.exit(1);
+});
